@@ -3,8 +3,9 @@ package com.luru.greeting.client
 import com.proto.greet.*
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
-import java.util.concurrent.CountDownLatch
 
 class GreetingClient {
 
@@ -15,7 +16,9 @@ class GreetingClient {
             .build()
 
         //doUnaryCall(channel)
-        doClientStreaming(channel)
+        //doClientStreaming(channel)
+        //doServerStreaming(channel)
+        doBidirectionalStreaming(channel)
     }
 
     private suspend fun doUnaryCall(channel: ManagedChannel) {
@@ -41,12 +44,12 @@ class GreetingClient {
         println("============= CLIENT STREAMING CALL =============")
 
         val client = GreetServiceGrpcKt.GreetServiceCoroutineStub(channel)
-        val messages = client.longGreet(generateGreetingRequests())
+        val messages = client.longGreet(generateLongGreetingRequests())
 
         println(messages.result)
     }
 
-    private fun generateGreetingRequests() = flow {
+    private fun generateLongGreetingRequests() = flow {
         val names = arrayListOf("Luis", "Natalia", "Paula", "Martina")
         names.forEach{ name ->
             val greeting = Greeting.newBuilder()
@@ -54,6 +57,44 @@ class GreetingClient {
                 .build()
             val request = LongGreetRequest.newBuilder().setGreeting(greeting).build()
             emit(request)
+        }
+    }
+
+    private suspend fun doServerStreaming(channel: ManagedChannel) {
+        println("============= SERVER STREAMING CALL =============")
+
+        val client = GreetServiceGrpcKt.GreetServiceCoroutineStub(channel)
+        val greeting = Greeting.newBuilder()
+            .setFirstName("Luis")
+            .setLastName("Ruiz")
+            .build()
+        val request = GreetManyTimesRequest.newBuilder().setGreeting(greeting).build()
+        client.greetManyTimes(request)
+            .collect { message -> println(message) }
+    }
+    
+    private suspend fun doBidirectionalStreaming(channel: ManagedChannel) {
+        println("============= BI-DIRECTIONAL STREAMING CALL =============")
+        
+        val client = GreetServiceGrpcKt.GreetServiceCoroutineStub(channel)
+        client.greetEveryone(generateGreetEveryoneGreetingRequests())
+            .collect {
+                    message -> println(message)
+            }
+    }
+
+    private fun generateGreetEveryoneGreetingRequests() = flow {
+        val names = arrayListOf("Luis", "Natalia", "Paula", "Martina")
+        names.forEach{ name ->
+            val greeting = Greeting.newBuilder()
+                .setFirstName(name)
+                .build()
+            val request = GreetEveryoneRequest.newBuilder()
+                .apply { this.greeting = greeting }
+                .build()
+            emit(request)
+            println("Greeting $name")
+            delay(500)
         }
     }
 }
