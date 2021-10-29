@@ -1,6 +1,8 @@
 package com.luru.greeting.server
 
 import com.proto.greet.*
+import io.grpc.Context
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
@@ -49,5 +51,19 @@ class GreetingService : GreetServiceGrpcKt.GreetServiceCoroutineImplBase() {
                 emit(response)
             }
         }
+    }
+
+    override suspend fun greetWithDeadline(request: GreetWithDeadlineRequest): GreetWithDeadlineResponse {
+        val context = Context.current()
+
+        if (context.isCancelled) {
+            return GreetWithDeadlineResponse.newBuilder().build()
+        }
+
+        delay(100)
+
+        return GreetWithDeadlineResponse.newBuilder()
+            .apply { this.result = "Hello ${request.greeting.firstName} from gRPC"}
+            .build()
     }
 }

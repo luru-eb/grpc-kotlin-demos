@@ -1,11 +1,13 @@
 package com.luru.greeting.client
 
 import com.proto.greet.*
+import io.grpc.Deadline
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import java.util.concurrent.TimeUnit
 
 class GreetingClient {
 
@@ -18,7 +20,8 @@ class GreetingClient {
         //doUnaryCall(channel)
         //doClientStreaming(channel)
         //doServerStreaming(channel)
-        doBidirectionalStreaming(channel)
+        //doBidirectionalStreaming(channel)
+        doWithDeadline(channel)
     }
 
     private suspend fun doUnaryCall(channel: ManagedChannel) {
@@ -96,6 +99,26 @@ class GreetingClient {
             println("Greeting $name")
             delay(500)
         }
+    }
+
+    private suspend fun doWithDeadline(channel: ManagedChannel) {
+        println("============= DEADLINE CALL =============")
+
+        val client = GreetServiceGrpcKt.GreetServiceCoroutineStub(channel)
+        val greeting = Greeting.newBuilder()
+            .setFirstName("Luis")
+            .build()
+        val request = GreetWithDeadlineRequest.newBuilder()
+            .setGreeting(greeting)
+            .build()
+        println("============= DEADLINE CALL 800ms =============")
+        client
+            .withDeadline(Deadline.after(800, TimeUnit.MILLISECONDS))
+            .greetWithDeadline(request)
+        println("============= DEADLINE CALL 100ms =============")
+        client
+            .withDeadline(Deadline.after(100, TimeUnit.MILLISECONDS))
+            .greetWithDeadline(request)
     }
 }
 
